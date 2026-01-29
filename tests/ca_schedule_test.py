@@ -231,7 +231,7 @@ TEST_CASES = [
                     "reservChargeInfoDetail": {
                         "reservInfo": {
                             "day": [0, 6],
-                            "time": {"time": "1200", "timeSection": 1} # FIXME: API reverse engineering always return a timeSection of 0 when asking for 12:** PM. Is that just a bug with the web app?
+                            "time": {"time": "1200", "timeSection": 1}
                         },
                         "reservChargeSet": True,
                         "reservFatcSet": {
@@ -308,7 +308,7 @@ TEST_CASES = [
                     "reservChargeInfoDetail": {
                         "reservInfo": {
                             "day": [0, 6],
-                            "time": {"time": "1200", "timeSection": 1} # FIXME: API reverse engineering always return a timeSection of 0 when asking for 12:** PM. Is that just a bug with the web app?
+                            "time": {"time": "1200", "timeSection": 1}
                         },
                         "reservChargeSet": True,
                         "reservFatcSet": {
