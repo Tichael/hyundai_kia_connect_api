@@ -26,6 +26,7 @@ from .const import (
     TEMPERATURE_UNITS,
     VEHICLE_LOCK_ACTION,
     OTP_NOTIFY_TYPE,
+    CLIMATE_HEATING_LEVEL,
 )
 from .exceptions import APIError, AuthenticationError
 from .utils import get_child_value, parse_datetime
@@ -954,7 +955,7 @@ class KiaUvoApiUSA(ApiImpl):
         if options.climate is None:
             options.climate = True
         if options.heating is None:
-            options.heating = 0
+            options.heating = CLIMATE_HEATING_LEVEL.OFF
         if options.defrost is None:
             options.defrost = False
         if options.duration is None:

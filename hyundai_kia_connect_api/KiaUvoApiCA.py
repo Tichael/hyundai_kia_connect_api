@@ -17,7 +17,12 @@ import requests.packages.urllib3.util.connection as urllib3_cn
 
 # Try to fix hyundai/cloudflare
 
-from .ApiImpl import ApiImpl, ClimateRequestOptions, OTPRequest
+from .ApiImpl import (
+    ApiImpl,
+    ClimateRequestOptions,
+    OTPRequest,
+    ScheduleChargingClimateRequestOptions,
+)
 from .const import (
     BRAND_GENESIS,
     BRAND_HYUNDAI,
@@ -31,6 +36,8 @@ from .const import (
     SEAT_STATUS,
     TEMPERATURE_UNITS,
     VEHICLE_LOCK_ACTION,
+    OFF_PEAK_MODE,
+    CLIMATE_HEATING_LEVEL,
 )
 from .exceptions import APIError, AuthenticationError
 from .Token import Token
@@ -451,6 +458,8 @@ class KiaUvoApiCA(ApiImpl):
             charge = self._get_charge_limits(token, vehicle)
             self._update_vehicle_properties_charge(vehicle, charge)
             self._update_vehicle_properties_trip_details(token, vehicle)
+            sched = self._get_scheduled_charging_and_climate(token, vehicle)
+            self._update_vehicle_properties_scheduled_charging(vehicle, sched)
 
     def force_refresh_vehicle_state(self, token: Token, vehicle: Vehicle) -> None:
         state = self._get_forced_vehicle_state(token, vehicle)
@@ -493,6 +502,8 @@ class KiaUvoApiCA(ApiImpl):
             charge = self._get_charge_limits(token, vehicle)
             self._update_vehicle_properties_charge(vehicle, charge)
             self._update_vehicle_properties_trip_details(token, vehicle)
+            sched = self._get_scheduled_charging_and_climate(token, vehicle)
+            self._update_vehicle_properties_scheduled_charging(vehicle, sched)
 
     def _update_vehicle_properties_base(self, vehicle: Vehicle, state: dict) -> None:
         _LOGGER.debug(f"{DOMAIN} - Old Vehicle Last Updated: {vehicle.last_updated_at}")
@@ -868,7 +879,7 @@ class KiaUvoApiCA(ApiImpl):
             _LOGGER.warning(f"{DOMAIN} - Get vehicle location failed")
             return None
 
-    def _get_pin_token(self, token: Token, vehicle: Vehicle) -> None:
+    def _get_pin_token(self, token: Token, vehicle: Vehicle) -> str:
         url = self.API_URL + "vrfypin"
         headers = self.API_HEADERS.copy()
         headers["accessToken"] = token.access_token
@@ -919,7 +930,7 @@ class KiaUvoApiCA(ApiImpl):
         if options.duration is None:
             options.duration = 5
         if options.heating is None:
-            options.heating = 0
+            options.heating = CLIMATE_HEATING_LEVEL.OFF
         if options.defrost is None:
             options.defrost = False
         if options.front_left_seat is None:
@@ -1164,6 +1175,106 @@ class KiaUvoApiCA(ApiImpl):
 
         return response["result"]
 
+    def _get_time_from_string(self, time, timesection) -> dt.time | None:
+        if time is not None:
+            str_val = str(time).zfill(4)
+            hour = int(str_val[:2])
+            minute = int(str_val[2:])
+            if timesection == 1 and hour < 12:
+                hour += 12
+            elif timesection == 0 and hour == 12:
+                hour = 0
+            return dt.time(hour, minute)
+        return None
+
+    def _update_vehicle_properties_scheduled_charging(self, vehicle: Vehicle, state: dict) -> None:
+        if not state:
+            return
+
+        vehicle.ev_schedule_charge_enabled = (str(state.get("reservFlag")) == "1")
+
+        # First Departure
+        info_wrapper = state.get("reservChargeInfo")
+        if info_wrapper is None:
+            info_wrapper = {}
+        info = info_wrapper.get("reservChargeInfoDetail")
+        if info is None:
+            info = {}
+        vehicle.ev_first_departure_enabled = info.get("reservChargeSet")
+        vehicle.ev_first_departure_days = get_child_value(info, "reservInfo.day")
+        vehicle.ev_first_departure_time = self._get_time_from_string(
+            get_child_value(info, "reservInfo.time.time"),
+            get_child_value(info, "reservInfo.time.timeSection")
+        )
+        vehicle.ev_first_departure_climate_enabled = bool(get_child_value(info, "reservFatcSet.airCtrl"))
+        vehicle.ev_first_departure_climate_defrost = get_child_value(info, "reservFatcSet.defrost")
+        heating_val = get_child_value(info, "reservFatcSet.heating1")
+        if heating_val is not None:
+            vehicle.ev_first_departure_climate_heating = CLIMATE_HEATING_LEVEL(heating_val)
+
+        temp_val = get_child_value(info, "reservFatcSet.airTemp.value")
+        if temp_val:
+            idx = get_hex_temp_into_index(temp_val)
+            if idx is not None:
+                try:
+                    if vehicle.year >= self.temperature_range_model_year:
+                        temp = self.temperature_range_c_new[idx]
+                    else:
+                        temp = self.temperature_range_c_old[idx]
+                    vehicle.ev_first_departure_climate_temperature = (temp, TEMPERATURE_UNITS[0])
+                except IndexError:
+                    pass
+
+        # Second Departure
+        info2_wrapper = state.get("reserveChargeInfo2")
+        if info2_wrapper is None:
+            info2_wrapper = {}
+        info2 = info2_wrapper.get("reservChargeInfoDetail")
+        if info2 is None:
+            info2 = {}
+        vehicle.ev_second_departure_enabled = info2.get("reservChargeSet")
+        vehicle.ev_second_departure_days = get_child_value(info2, "reservInfo.day")
+        vehicle.ev_second_departure_time = self._get_time_from_string(
+            get_child_value(info2, "reservInfo.time.time"),
+            get_child_value(info2, "reservInfo.time.timeSection")
+        )
+        vehicle.ev_second_departure_climate_enabled = bool(get_child_value(info2, "reservFatcSet.airCtrl"))
+        vehicle.ev_second_departure_climate_defrost = get_child_value(info2, "reservFatcSet.defrost")
+        heating_val2 = get_child_value(info2, "reservFatcSet.heating1")
+        if heating_val2 is not None:
+            vehicle.ev_second_departure_climate_heating = CLIMATE_HEATING_LEVEL(heating_val2)
+
+        temp_val2 = get_child_value(info2, "reservFatcSet.airTemp.value")
+        if temp_val2:
+            idx = get_hex_temp_into_index(temp_val2)
+            if idx is not None:
+                try:
+                    if vehicle.year >= self.temperature_range_model_year:
+                        temp = self.temperature_range_c_new[idx]
+                    else:
+                        temp = self.temperature_range_c_old[idx]
+                    vehicle.ev_second_departure_climate_temperature = (temp, TEMPERATURE_UNITS[0])
+                except IndexError:
+                    pass
+
+        # Off Peak
+        off_peak = state.get("offpeakPowerInfo")
+        if off_peak is None:
+            off_peak = {}
+
+        off_peak_flag = off_peak.get("offPeakPowerFlag")
+        vehicle.ev_off_peak_mode = OFF_PEAK_MODE(off_peak_flag) if off_peak_flag is not None else OFF_PEAK_MODE.DISABLED
+        vehicle.ev_off_peak_charge_only_enabled = off_peak_flag == 2
+
+        vehicle.ev_off_peak_start_time = self._get_time_from_string(
+            get_child_value(off_peak, "offPeakPowerTime1.starttime.time"),
+            get_child_value(off_peak, "offPeakPowerTime1.starttime.timeSection")
+        )
+        vehicle.ev_off_peak_end_time = self._get_time_from_string(
+            get_child_value(off_peak, "offPeakPowerTime1.endtime.time"),
+            get_child_value(off_peak, "offPeakPowerTime1.endtime.timeSection")
+        )
+
     def set_charge_limits(
         self, token: Token, vehicle: Vehicle, ac: int, dc: int
     ) -> str:
@@ -1198,6 +1309,118 @@ class KiaUvoApiCA(ApiImpl):
         response_headers = response.headers
         response = response.json()
         _LOGGER.debug(f"{DOMAIN} - Received set_charge_limits response {response}")
+        return response_headers["transactionId"]
+
+    def _get_scheduled_charging_and_climate(self, token: Token, vehicle: Vehicle) -> dict[str, ty.Any]:
+        url = self.API_URL + "evc/grcfs"
+        headers = self.API_HEADERS
+        headers["accessToken"] = token.access_token
+        headers["vehicleId"] = vehicle.id
+
+        response = self.sessions.post(url, headers=headers)
+        response = response.json()
+        _LOGGER.debug(f"{DOMAIN} - Received get_next_departure: {response}")
+
+        return response["result"]
+
+    def schedule_charging_and_climate(
+        self,
+        token: Token,
+        vehicle: Vehicle,
+        options: ScheduleChargingClimateRequestOptions
+    ) -> str:
+        url = self.API_URL + "evc/srcfs"
+        headers = self.API_HEADERS
+        headers["accessToken"] = token.access_token
+        headers["vehicleId"] = vehicle.id
+        headers["pAuth"] = self._get_pin_token(token, vehicle)
+
+        def get_departure_payload(dep_options: ScheduleChargingClimateRequestOptions.DepartureOptions | None) -> dict[str, ty.Any]:
+            if dep_options is None:
+                return {
+                    "reservChargeInfoDetail": {
+                        "reservInfo": {
+                            "day": [9],
+                            "time": {"time": "1200", "timeSection": 0}
+                        },
+                        "reservChargeSet": False
+                    }
+                }
+
+            dep_time = dep_options.time if dep_options.time else dt.time(12, 0)
+            dep_time_str = dep_time.strftime("%I%M")
+            dep_time_section = 1 if dep_time.hour >= 12 else 0
+
+            detail = {
+                "reservInfo": {
+                    "day": dep_options.days if dep_options.days else [9],
+                    "time": {
+                        "time": dep_time_str,
+                        "timeSection": dep_time_section
+                    }
+                },
+                "reservChargeSet": dep_options.enabled if dep_options.enabled is not None else False
+            }
+
+            if dep_options.enabled:
+                temp = options.temperature if options.temperature else 24.0
+                if vehicle.year >= self.temperature_range_model_year:
+                    hex_temp = get_index_into_hex_temp(self.temperature_range_c_new.index(temp))
+                else:
+                    hex_temp = get_index_into_hex_temp(self.temperature_range_c_old.index(temp))
+
+                detail["reservFatcSet"] = {
+                    "defrost": options.defrost if options.defrost is not None else False,
+                    "airTemp": {
+                        "value": hex_temp,
+                        "unit": 0,
+                        "hvacTempType": 1
+                    },
+                    "airCtrl": 1 if options.climate_enabled else 0,
+                    "heating1": options.heating if options.heating is not None else CLIMATE_HEATING_LEVEL.OFF
+                }
+
+            return {"reservChargeInfoDetail": detail}
+
+        off_peak_flag = 0
+        if options.off_peak_mode:
+            off_peak_flag = options.off_peak_mode.value
+        # Fallback for backward compatibility
+        elif options.off_peak_charge_only_enabled:
+            off_peak_flag = 2
+
+        payload = {
+            "pin": token.pin,
+            "reservChargeInfos": {
+                "reservFlag": "1" if options.charging_enabled else "0",
+                "reservChargeInfo": get_departure_payload(options.first_departure),
+                "reserveChargeInfo2": get_departure_payload(options.second_departure),
+                "offpeakPowerInfo": {
+                    "offPeakPowerFlag": off_peak_flag,
+                    "offPeakPowerTime1": {
+                        "starttime": {
+                            "time": options.off_peak_start_time.strftime("%I%M") if options.off_peak_start_time else "0000",
+                            "timeSection": 1 if options.off_peak_start_time and options.off_peak_start_time.hour >= 12 else 0
+                        },
+                        "endtime": {
+                            "time": options.off_peak_end_time.strftime("%I%M") if options.off_peak_end_time else "0100",
+                            "timeSection": 1 if options.off_peak_end_time and options.off_peak_end_time.hour >= 12 else 0
+                        }
+                    },
+                    "offPeakPowerTime2": {
+                        "starttime": {"time": "0000", "timeSection": 0},
+                        "endtime": {"time": "0100", "timeSection": 0}
+                    }
+                }
+            }
+        }
+
+        _LOGGER.debug(f"{DOMAIN} - Planned schedule_charging_and_climate payload {self._mask_sensitive_data(payload)}")
+        response = self.sessions.post(url, headers=headers, data=json.dumps(payload))
+        response_headers = response.headers
+        response = response.json()
+
+        _LOGGER.debug(f"{DOMAIN} - Received schedule_charging_and_climate response {response}")
         return response_headers["transactionId"]
 
     def _mask_sensitive_data(self, data: dict | str) -> dict | str:

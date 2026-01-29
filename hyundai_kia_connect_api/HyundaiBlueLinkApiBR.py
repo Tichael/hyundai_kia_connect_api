@@ -22,6 +22,7 @@ from .const import (
     SEAT_STATUS,
     VEHICLE_LOCK_ACTION,
     WINDOW_STATE,
+    CLIMATE_HEATING_LEVEL,
 )
 from .exceptions import APIError
 from .Token import Token
@@ -626,7 +627,7 @@ class HyundaiBlueLinkApiBR(ApiImpl):
         if options.climate is None:
             options.climate = True
         if options.heating is None:
-            options.heating = 0
+            options.heating = CLIMATE_HEATING_LEVEL.OFF
         if options.front_left_seat is None:
             options.front_left_seat = 0
 

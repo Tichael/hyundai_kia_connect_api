@@ -121,3 +121,17 @@ class VALET_MODE_ACTION(Enum):
 class OTP_NOTIFY_TYPE(Enum):
     EMAIL = "EMAIL"
     SMS = "SMS"
+
+
+class OFF_PEAK_MODE(IntEnum):
+    DISABLED = 0
+    PRIORITY = 1
+    ONLY = 2
+
+
+class CLIMATE_HEATING_LEVEL(IntEnum):
+    OFF = 0
+    UNIFIED_OR_SINGLE = 1
+    SIDE_MIRROR_REAR_WINDOW = 2
+    STEERING_WHEEL = 3
+    ALL = 4

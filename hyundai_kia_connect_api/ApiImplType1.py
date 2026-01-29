@@ -28,6 +28,8 @@ from .const import (
     TEMPERATURE_UNITS,
     VEHICLE_LOCK_ACTION,
     ORDER_STATUS,
+    OFF_PEAK_MODE,
+    CLIMATE_HEATING_LEVEL,
 )
 
 from .exceptions import (
@@ -836,8 +838,12 @@ class ApiImplType1(ApiImpl):
             options.off_peak_start_time = dt.time()
         if options.off_peak_end_time is None:
             options.off_peak_end_time = options.off_peak_start_time
-        if options.off_peak_charge_only_enabled is None:
-            options.off_peak_charge_only_enabled = False
+        if options.off_peak_mode is None:
+            # Fallback for backward compatibility
+            if options.off_peak_charge_only_enabled:
+                options.off_peak_mode = OFF_PEAK_MODE.ONLY
+            else:
+                options.off_peak_mode = OFF_PEAK_MODE.PRIORITY
         if options.climate_enabled is None:
             options.climate_enabled = False
         if options.temperature is None:
@@ -874,7 +880,7 @@ class ApiImplType1(ApiImpl):
                         "hvacTempType": 1,
                         "unit": options.temperature_unit,
                     },
-                    "heating1": 0,
+                    "heating1": CLIMATE_HEATING_LEVEL.OFF,
                     "defrost": options.defrost,
                 },
             }
@@ -897,7 +903,7 @@ class ApiImplType1(ApiImpl):
                         "time": options.off_peak_start_time.strftime("%I%M"),
                     },
                 },
-                "offPeakPowerFlag": 2 if options.off_peak_charge_only_enabled else 1,
+                "offPeakPowerFlag": options.off_peak_mode.value,
             },
             "reservFlag": 1 if options.charging_enabled else 0,
         }
@@ -927,7 +933,7 @@ class ApiImplType1(ApiImpl):
         if options.climate is None:
             options.climate = True
         if options.heating is None:
-            options.heating = 0
+            options.heating = CLIMATE_HEATING_LEVEL.OFF
         if not vehicle.ccu_ccs2_protocol_support:
             hex_set_temp = get_index_into_hex_temp(
                 self.temperature_range.index(options.set_temp)

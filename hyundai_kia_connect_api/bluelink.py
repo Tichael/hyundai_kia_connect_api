@@ -168,6 +168,9 @@ def print_vehicle(vehicle):
     print(
         "  first_departure_climate_defrost:", vehicle.ev_first_departure_climate_defrost
     )
+    print(
+        "  first_departure_climate_heating:", vehicle.ev_first_departure_climate_heating
+    )
     print("  second_departure_enabled:", vehicle.ev_second_departure_enabled)
     print(
         "  second_departure_climate_temperature:",
@@ -184,8 +187,12 @@ def print_vehicle(vehicle):
         "  second_departure_climate_defrost:",
         vehicle.ev_second_departure_climate_defrost,
     )
+    print(
+        "  second_departure_climate_heating:", vehicle.ev_second_departure_climate_heating
+    )
     print("  off_peak_start_time:", vehicle.ev_off_peak_start_time)
     print("  off_peak_end_time:", vehicle.ev_off_peak_end_time)
+    print("  off_peak_mode:", vehicle.ev_off_peak_mode)
     print("  off_peak_charge_only_enabled:", vehicle.ev_off_peak_charge_only_enabled)
     print("  schedule_charge_enabled:", vehicle.ev_schedule_charge_enabled)
     print("PHEV/HEV/IC")
@@ -343,6 +350,7 @@ def vehicle_to_dict(vehicle):
             "first_departure_time": vehicle.ev_first_departure_time,
             "first_departure_climate_enabled": vehicle.ev_first_departure_climate_enabled,
             "first_departure_climate_defrost": vehicle.ev_first_departure_climate_defrost,
+            "first_departure_climate_heating": str(vehicle.ev_first_departure_climate_heating),
             "second_departure_enabled": vehicle.ev_second_departure_enabled,
             "second_departure_climate_temperature": [
                 vehicle.ev_second_departure_climate_temperature,
@@ -352,8 +360,10 @@ def vehicle_to_dict(vehicle):
             "second_departure_time": vehicle.ev_second_departure_time,
             "second_departure_climate_enabled": vehicle.ev_second_departure_climate_enabled,
             "second_departure_climate_defrost": vehicle.ev_second_departure_climate_defrost,
+            "second_departure_climate_heating": str(vehicle.ev_second_departure_climate_heating),
             "off_peak_start_time": vehicle.ev_off_peak_start_time,
             "off_peak_end_time": vehicle.ev_off_peak_end_time,
+            "off_peak_mode": str(vehicle.ev_off_peak_mode),
             "off_peak_charge_only_enabled": vehicle.ev_off_peak_charge_only_enabled,
             "schedule_charge_enabled": vehicle.ev_schedule_charge_enabled,
         },

@@ -22,6 +22,7 @@ from .const import (
     SEAT_STATUS,
     TEMPERATURE_UNITS,
     VEHICLE_LOCK_ACTION,
+    CLIMATE_HEATING_LEVEL,
 )
 from .Token import Token
 from .utils import get_child_value, get_float, parse_datetime
@@ -834,7 +835,7 @@ class HyundaiBlueLinkApiUSA(ApiImpl):
         if options.duration is None:
             options.duration = 5
         if options.heating is None:
-            options.heating = 0
+            options.heating = CLIMATE_HEATING_LEVEL.OFF
         if options.defrost is None:
             options.defrost = False
         if options.front_left_seat is None:

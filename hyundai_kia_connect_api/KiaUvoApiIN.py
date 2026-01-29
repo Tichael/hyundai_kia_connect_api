@@ -30,6 +30,7 @@ from .const import (
     TEMPERATURE_UNITS,
     VALET_MODE_ACTION,
     VEHICLE_LOCK_ACTION,
+    CLIMATE_HEATING_LEVEL,
 )
 from .exceptions import AuthenticationError
 from .Token import Token
@@ -573,7 +574,7 @@ class KiaUvoApiIN(ApiImplType1):
         if options.climate is None:
             options.climate = True
         if options.heating is None:
-            options.heating = 0
+            options.heating = CLIMATE_HEATING_LEVEL.OFF
 
         hex_set_temp = get_index_into_hex_temp(
             self.temperature_range.index(options.set_temp)

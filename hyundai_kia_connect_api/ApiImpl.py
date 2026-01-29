@@ -27,6 +27,8 @@ from .const import (
     OPENSTREETMAP,
     GOOGLE,
     OTP_NOTIFY_TYPE,
+    OFF_PEAK_MODE,
+    CLIMATE_HEATING_LEVEL,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -38,7 +40,7 @@ class ClimateRequestOptions:
     duration: int = None
     defrost: bool = None
     climate: bool = None
-    heating: int = None
+    heating: CLIMATE_HEATING_LEVEL = None
     front_left_seat: int = None
     front_right_seat: int = None
     rear_left_seat: int = None
@@ -77,11 +79,14 @@ class ScheduleChargingClimateRequestOptions:
     charging_enabled: bool = None
     off_peak_start_time: dt.time = None
     off_peak_end_time: dt.time = None
-    off_peak_charge_only_enabled: bool = None
+    off_peak_mode: OFF_PEAK_MODE = None
     climate_enabled: bool = None
     temperature: float = None
     temperature_unit: int = None
     defrost: bool = None
+    heating: CLIMATE_HEATING_LEVEL = None
+    # Deprecated: Kept for backward compatibility
+    off_peak_charge_only_enabled: bool = None
 
 
 class ApiImpl:

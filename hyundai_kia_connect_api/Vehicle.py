@@ -7,7 +7,7 @@ import typing
 from dataclasses import dataclass, field
 
 from .utils import get_float, get_safe_local_datetime
-from .const import DISTANCE_UNITS
+from .const import DISTANCE_UNITS, OFF_PEAK_MODE, CLIMATE_HEATING_LEVEL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -333,9 +333,13 @@ class Vehicle:
 
     ev_first_departure_climate_defrost: typing.Union[bool, None] = None
     ev_second_departure_climate_defrost: typing.Union[bool, None] = None
+    ev_first_departure_climate_heating: typing.Union[CLIMATE_HEATING_LEVEL, None] = None
+    ev_second_departure_climate_heating: typing.Union[CLIMATE_HEATING_LEVEL, None] = None
 
     ev_off_peak_start_time: typing.Union[datetime.time, None] = None
     ev_off_peak_end_time: typing.Union[datetime.time, None] = None
+    ev_off_peak_mode: typing.Union[OFF_PEAK_MODE, None] = None
+    # Deprecated: Kept for backward compatibility
     ev_off_peak_charge_only_enabled: typing.Union[bool, None] = None
 
     ev_schedule_charge_enabled: typing.Union[bool, None] = None
